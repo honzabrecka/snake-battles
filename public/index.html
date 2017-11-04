@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>snake</title>
+    <script type="text/javascript">
+
+const connection = new WebSocket('ws://localhost:8080')
+
+connection.onopen = () => {
+  console.log('open')
+};
+
+connection.onerror = (error) => {
+  console.log('error', error)
+}
+
+connection.onmessage = (message) => {
+  console.log('message', message)
+}
+
+window['ws'] = connection
+
+    </script>
+  </head>
+  <body>
+  </body>
+</html>
