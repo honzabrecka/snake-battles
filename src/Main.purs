@@ -60,8 +60,8 @@ type Game =
 directionToPoint :: Direction -> Point
 directionToPoint Left  = Tuple (-1) 0
 directionToPoint Right = Tuple 1 0
-directionToPoint Down  = Tuple 0 (-1)
-directionToPoint Up    = Tuple 0 1
+directionToPoint Up    = Tuple 0 (-1)
+directionToPoint Down  = Tuple 0 1
 
 heads :: Array OrientedPoint
 heads =
@@ -109,7 +109,10 @@ grow true  = id
 grow false = unsafePartial Partial.init
 
 moveSnake :: (Boolean -> Body -> Body) -> Dimensions -> Point -> Snake -> Snake
-moveSnake grow dimensions food snake = snake { body = body', ate = ate }
+moveSnake grow dimensions food snake =
+  if snake.live
+  then snake { body = body', ate = ate }
+  else snake
   where
     head' = nextHead dimensions snake
     ate = food == point head'

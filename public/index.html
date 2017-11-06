@@ -56,6 +56,14 @@ const directionToP = (d) => {
   return [0, -1]
 }
 
+const inRange = ([x, y]) => {
+  if (x < 0)   return [9, y]
+  if (x == 10) return [0, y]
+  if (y < 0)   return [x, 9]
+  if (y == 10) return [x, 0]
+  return [x, y]
+}
+
 function draw(snakes) {
   context.clearRect(0, 0, context.canvas.width, context.canvas.height)
 
@@ -73,7 +81,7 @@ function draw(snakes) {
 
     body.forEach(([direction, length]) => {
       for (let i = 0; i < length; i++) {
-        p = add(p, directionToP(direction))
+        p = inRange(add(p, directionToP(direction)))
 
         context.beginPath()
         context.rect(p[0] * s, p[1] * s, s, s)
