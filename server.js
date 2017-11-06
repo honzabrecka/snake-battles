@@ -93,7 +93,8 @@ wss.on('connection', (ws) => {
   console.log('connect :: ', Object.keys(players).length)
 
   ws.on('message', (data) => {
-    console.log('message :: ', data)
+    const d = JSON.parse(data)
+    console.log('message :: ', d)
 
     //
 
@@ -101,17 +102,19 @@ wss.on('connection', (ws) => {
 
     if (gameId) {
       const { playerIds, game } = games[gameId]
-      const index = playerIds.find((player) => player.id === id)
+      const index = playerIds.findIndex(($id) => $id === id)
 
-      const key = 2
-      const tick = 3
+      const key = d[1]
+      const tick = d[0] + 1
+
+      //console.log(snake.updateDirection(snake.codeToDirection(key))(index)(tick)(game))
 
       games[gameId] = {
         ...games[gameId],
         game: snake.updateDirection(snake.codeToDirection(key))(index)(tick)(game)
       }
 
-      console.log(games[gameId].game.snakes)
+      console.log(game.tick, tick, games[gameId].game.snakes[0])
     }
 
     // action (key)
