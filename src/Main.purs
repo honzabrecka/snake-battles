@@ -3,6 +3,7 @@ module Main
   , tick
   , pause
   , resume
+  , encode
   , updateDirection
   , codeToDirection
   , Direction
@@ -12,7 +13,7 @@ import Prelude
 
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Random (RANDOM, randomInt)
-import Data.Array (all, alterAt, any, concat, concatMap, cons, filter, foldl, group, length, mapWithIndex, range, replicate, take, unsafeIndex)
+import Data.Array (all, alterAt, any, concat, concatMap, cons, filter, foldl, group, length, mapWithIndex, range, replicate, reverse, take, unsafeIndex)
 import Data.Array.Partial as Partial
 import Data.Maybe (Maybe(..), fromMaybe)
 import Data.NonEmpty (NonEmpty(..))
@@ -236,19 +237,24 @@ updateDirection direction i tick game
   | otherwise = game
 
 encodeSnake :: Tuple Int Snake -> Array (Array Int)
-encodeSnake (Tuple index { body, live }) =
-  [ [if live then 1 else 0, index]
-  , [(fst head'), (snd head')]
-  ]
+encodeSnake (Tuple index { body, live }) = concat [header, body', [tail']]
   where
     head' = head body
     directions = group $ map snd body
+    header =
+      [ [if live then 1 else 0, index]
+      , [(fst head'), (snd head')]
+      ]
     body' = map f directions
     f :: NonEmpty Array Direction -> Array Int
     f (NonEmpty h t) = [directionToCode h, length t + 1]
+    tail' = unsafePartial Partial.head $ reverse body'
 
-encode :: Game -> Array Int
-encode game = []
+encode :: Game -> { header :: Array Int, snakes :: Array (Array (Array Int)) }
+encode game =
+  { header: header
+  , snakes: snakes
+  }
   where
     header =
       [ if game.end then 1 else 0

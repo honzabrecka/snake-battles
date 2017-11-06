@@ -7,7 +7,7 @@ const snake = require('./output/Main')
 
 const app = express()
 
-const minPlayers = 2
+const minPlayers = 1
 
 // { id :: UUID, ws :: WebSocketClient, gameId :: Maybe UUID }
 const players = {}
@@ -62,7 +62,7 @@ function createGame(playerId) {
     games[gameId] = {
       gameId,
       playerIds,
-      game: snake.main()
+      game: snake.initGame(10)(10)(2)()
     }
 
     playerIds.forEach((id) => {
@@ -103,9 +103,12 @@ wss.on('connection', (ws) => {
       const { playerIds, game } = games[gameId]
       const index = playerIds.find((player) => player.id === id)
 
+      const key = 2
+      const tick = 3
+
       games[gameId] = {
         ...games[gameId],
-        game: snake.updateDirection(index)(data)(game)
+        game: snake.updateDirection(snake.codeToDirection(key))(index)(tick)(game)
       }
 
       console.log(games[gameId].game.snakes)
@@ -134,15 +137,41 @@ wss.on('connection', (ws) => {
   })
 })
 
+function encode(header, snakes) {
+  const encoded = new Uint16Array(header.length + snakes.reduce((r, s) => r + s.length + 1, 0))
+
+  let i
+  let x = 0
+
+  for (i = 0; i < header.length; i++)
+    encoded[x++] = header[i]
+
+  snakes.forEach((snake) => {
+    const [[live, index], [x_, y_], ...rest] = snake
+
+    encoded[x++] = live << 15 | index
+    encoded[x++] = x_
+    encoded[x++] = y_
+
+    for (i = 0; i < rest.length; i++) {
+      const [direction, length] = rest[i]
+      encoded[x++] = direction << 14 | length
+    }
+  })
+
+  return encoded
+}
+
 server.listen(8080, () => {
   console.log('Listening on %d', server.address().port);
 
   setInterval(() => {
-    Object.values(games).forEach(({ game, playerIds }) => {
-      const encodedGame = snake.encode(game)
+    Object.values(games).forEach(({ gameId, game, playerIds }) => {
+      const { header, snakes } = snake.encode(game)
       playerIds.forEach((id) => {
-        players[id].ws.send(encodedGame)
+        players[id].ws.send(encode(header, snakes).buffer, { binary: true, mask: false })
       })
+      games[gameId] = { ...games[gameId], game: snake.tick(game)() }
     })
   }, 1000)
 })

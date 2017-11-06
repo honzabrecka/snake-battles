@@ -3,6 +3,9 @@
   <head>
     <meta charset="utf-8">
     <title>snake</title>
+  </head>
+  <body>
+    <canvas id="canvas" width="100" height="100" style="background: #ccc"></canvas>
     <script type="text/javascript">
 
 const connection = new WebSocket('ws://localhost:8080')
@@ -17,12 +20,97 @@ connection.onerror = (error) => {
 
 connection.onmessage = (message) => {
   console.log('message', message)
+
+
+  var fr = new FileReader();
+  fr.onload = function (e) {
+    console.log(draw(decode(new Uint16Array(e.target.result))));
+  };
+  fr.readAsArrayBuffer(message.data);
 }
 
 window['ws'] = connection
 
+const canvas = document.getElementById('canvas')
+const context = canvas.getContext('2d')
+
+const s = 10
+
+const add = ([x, y], [a, b]) => [x + a, y + b]
+
+const directionToP = (d) => {
+  if (d === 0) return [1, 0]
+  if (d === 1) return [-1, 0]
+  if (d === 2) return [0, 1]
+  return [0, -1]
+}
+
+function draw(snakes) {
+  context.clearRect(0, 0, context.canvas.width, context.canvas.height)
+
+  snakes.forEach(((snake) => {
+    let p
+    const [[live, color], x, y, ...body] =  snake
+    p = [x, y]
+
+    console.log(body)
+
+    context.beginPath()
+    context.rect(p[0] * s, p[1] * s, s, s)
+    context.fillStyle = '#000000'
+    context.fill()
+
+    body.forEach(([direction, length]) => {
+      for (let i = 0; i < length; i++) {
+        p = add(p, directionToP(direction))
+
+        context.beginPath()
+        context.rect(p[0] * s, p[1] * s, s, s)
+        context.fillStyle = '#000000'
+        context.fill()
+      }
+    })
+  }))
+}
+
+function decode(bytes) {
+  const [state, tick, width, height, ...snakes] = bytes
+  const decoded = []
+
+  console.log(snakes)
+
+  for (let i = 0, j = 0, s = [], prev = ''; i < snakes.length; i++) {
+    if (j === 0) {
+      const live = snakes[i] >> 15
+      const index = snakes[i] ^ (live << 15)
+      s.push([live, index])
+      j++
+    } else if (j === 1 || j === 2) {
+      console.log(snakes[i])
+      s.push(snakes[i])
+      j++
+    } else if (j > 2) {
+      const direction = snakes[i] >> 14
+      const length = snakes[i] ^ (direction << 14)
+      const hash = direction + '' + length
+console.log('>>', direction, length)
+console.log('--', hash, prev)
+      if (hash === prev) {
+        decoded.push(s)
+        s = []
+        j = 0
+      } else {
+        prev = hash
+        s.push([direction, length])
+        j++
+      }
+    }
+  }
+
+  return decoded
+}
+
+
     </script>
-  </head>
-  <body>
   </body>
 </html>
