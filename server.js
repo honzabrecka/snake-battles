@@ -89,49 +89,36 @@ function destroyGame(gameId) {
   })
 }
 
-function decodeMessage(data) {
-  const json = JSON.parse(data)
-
-  if (!json
-    || !Array.isArray(json)
-    || json.length < 2
-    || typeof json[0] !== 'number'
-    || typeof json[1] !== 'number')
-    throw new Error('Invalid message')
-
-  return json
-}
-
 wss.on('connection', (ws) => {
+  ws.binaryType = 'arraybuffer'
+
   const id = addPlayer(ws)
   createGame(id)
   console.log('connect :: ', Object.keys(players).length)
 
   ws.on('message', (data) => {
-    try {
-      const [tick, code] = decodeMessage(data)
-      const { gameId } = players[id]
+    const [tick, code] = new Uint16Array(data)
+    const { gameId } = players[id]
 
-      if (!games[gameId]) return
+    if (!games[gameId]) return
 
-      if (new Set([0, 1, 2, 3]).has(code)) {
-        games[gameId] = {
-          ...games[gameId],
-          game: snake.updateDirection
-            (snake.codeToDirection(code))
-            (games[gameId].playerIds.findIndex(($id) => $id === id))
-            (tick)
-            (games[gameId].game)
-        }
+    if (new Set([0, 1, 2, 3]).has(code)) {
+      games[gameId] = {
+        ...games[gameId],
+        game: snake.updateDirection
+          (snake.codeToDirection(code))
+          (games[gameId].playerIds.findIndex(($id) => $id === id))
+          (tick)
+          (games[gameId].game)
       }
+    }
 
-      if (code === 4) {
-        games[gameId] = {
-          ...games[gameId],
-          game: snake.switchPause(id)(tick)(games[gameId].game)
-        }
+    if (code === 4) {
+      games[gameId] = {
+        ...games[gameId],
+        game: snake.switchPause(id)(tick)(games[gameId].game)
       }
-    } catch (_) {}
+    }
   })
 
   ws.on('close', () => {

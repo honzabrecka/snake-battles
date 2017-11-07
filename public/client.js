@@ -21,7 +21,12 @@ connection.onmessage = (message) => {
 
 window.onkeydown = (e) => {
   const code = {37: 0, 39: 1, 38: 2, 40: 3, 32: 4}[e.keyCode]
-  if (code !== undefined) connection.send(JSON.stringify([state.tick, code]))
+  if (code !== undefined) {
+    const bytes = new Uint16Array(2)
+    bytes[0] = state.tick
+    bytes[1] = code
+    connection.send(bytes)
+  }
 }
 
 const canvas = document.getElementById('canvas')
