@@ -1,3 +1,3 @@
-# snake
+# snake-battles
 
-purescript + websockets
+purescript + nodejs + websockets
