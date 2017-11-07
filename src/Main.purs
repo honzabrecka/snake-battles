@@ -168,12 +168,12 @@ checkHits game = pure game { snakes = snakes }
     hit snake = snake { live = not dead }
       where
         head' = head snake.body
-        dead = any hit' game.snakes
+        dead = not snake.live || any hit' game.snakes
         hit' :: Snake -> Boolean
         hit' { body } = member head' $ fromFoldable $ map point body'
           where
             body' =
-              if head' == head body
+              if snake.body == body
               then tail body
               else body
 

@@ -64,6 +64,13 @@ const inRange = ([x, y]) => {
   return [x, y]
 }
 
+const colors = [
+  '#0033cc',
+  '#339966',
+  '#800000',
+  '#ff9900'
+]
+
 function draw(snakes) {
   context.clearRect(0, 0, context.canvas.width, context.canvas.height)
 
@@ -76,7 +83,7 @@ function draw(snakes) {
 
     context.beginPath()
     context.rect(p[0] * s, p[1] * s, s, s)
-    context.fillStyle = '#000000'
+    context.fillStyle = colors[color]
     context.fill()
 
     body.forEach(([direction, length]) => {
@@ -85,7 +92,7 @@ function draw(snakes) {
 
         context.beginPath()
         context.rect(p[0] * s, p[1] * s, s, s)
-        context.fillStyle = '#000000'
+        context.fillStyle = colors[color]
         context.fill()
       }
     })
