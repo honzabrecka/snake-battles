@@ -264,5 +264,7 @@ encode game =
       , game.tick
       , fst game.dimensions
       , snd game.dimensions
+      , fst game.food
+      , snd game.food
       ]
     snakes = map encodeSnake $ mapWithIndex (\i s -> Tuple i s) $ game.snakes

@@ -29,9 +29,9 @@ connection.onmessage = (message) => {
     const decoded = decode(new Uint16Array(e.target.result))
     console.log(decoded)
     state = decoded
-    draw(decoded.snakes)
+    draw(state)
   };
-  fr.readAsArrayBuffer(message.data);
+  fr.readAsArrayBuffer(message.data)
 }
 
 window.onkeydown = (e) => {
@@ -64,43 +64,51 @@ const inRange = ([x, y]) => {
   return [x, y]
 }
 
-const colors = [
-  '#0033cc',
-  '#339966',
-  '#800000',
-  '#ff9900'
-]
+function drawPoint(context, live, color, [x, y]) {
+  const colors = [
+    '#0033cc',
+    '#339966',
+    '#800000',
+    '#ff9900'
+  ]
 
-function draw(snakes) {
+  context.beginPath()
+  context.globalAlpha = live ? 1 : 0.2
+  context.rect(x * s, y * s, s, s)
+  context.fillStyle = colors[color]
+  context.fill()
+  context.globalAlpha = 1
+}
+
+function drawFood(context, [x, y]) {
+  context.beginPath()
+  context.rect(x * s, y * s, s, s)
+  context.fillStyle = '#ff3300'
+  context.fill()
+}
+
+function draw({ snakes, food }) {
   context.clearRect(0, 0, context.canvas.width, context.canvas.height)
-
+  console.log(food)
+  drawFood(context, food)
   snakes.forEach(((snake) => {
     let p
     const [[live, color], x, y, ...body] =  snake
     p = [x, y]
 
-    console.log(body)
-
-    context.beginPath()
-    context.rect(p[0] * s, p[1] * s, s, s)
-    context.fillStyle = colors[color]
-    context.fill()
+    drawPoint(context, live, color, p)
 
     body.forEach(([direction, length]) => {
       for (let i = 0; i < length; i++) {
         p = inRange(add(p, directionToP(direction)))
-
-        context.beginPath()
-        context.rect(p[0] * s, p[1] * s, s, s)
-        context.fillStyle = colors[color]
-        context.fill()
+        drawPoint(context, live, color, p)
       }
     })
   }))
 }
 
 function decode(bytes) {
-  const [state, tick, width, height, ...snakes] = bytes
+  const [state, tick, width, height, foodX, foodY, ...snakes] = bytes
   const decoded = []
 
   console.log(snakes)
@@ -138,6 +146,7 @@ console.log('--', hash, prev)
     tick,
     width,
     height,
+    food: [foodX, foodY],
     snakes: decoded
   }
 }
