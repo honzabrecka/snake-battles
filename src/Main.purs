@@ -1,5 +1,5 @@
 module Main
-  ( initGame
+  ( initBoard
   , tick
   , pause
   , resume
@@ -7,6 +7,7 @@ module Main
   , updateDirection
   , codeToDirection
   , Direction
+  , Game
   ) where
 
 import Prelude
@@ -43,19 +44,23 @@ type Snake =
   , direction :: Direction
   }
 
-type Board = Array (Array Point)
+type Grid = Array (Array Point)
 
 type Dimensions = Tuple Int Int
 
-type Game =
+type Board =
   { snakes :: Array Snake
   , food :: Point
   , dimensions :: Dimensions
-  , tick :: Int
-  , startAfter :: Int
-  , pause :: Maybe String
-  , end :: Boolean
   }
+
+data Game b t c p
+  = Started c b
+  | Playing t b
+  | Paused t b p
+  | Ended b
+
+type Game' = Game Board Int Int String
 
 directionToPoint :: Direction -> Point
 directionToPoint Left  = Tuple (-1) 0
@@ -71,8 +76,8 @@ heads =
   , (Tuple (Tuple 7 7) Down)
   ]
 
-board :: Dimensions -> Board
-board (Tuple width height) = map (\x -> map (\y -> Tuple x y) h) w
+grid :: Dimensions -> Grid
+grid (Tuple width height) = map (\x -> map (\y -> Tuple x y) h) w
   where
     w = range 0 $ width - 1
     h = range 0 $ height - 1
@@ -137,38 +142,34 @@ nextFood dimensions snakes = do
   pure $ unsafePartial unsafeIndex empty i
   where
     occupied = fromFoldable $ concatSnakes snakes
-    empty = concatMap (filter (\p -> not $ member p occupied)) $ board dimensions
+    empty = concatMap (filter (\p -> not $ member p occupied)) $ grid dimensions
 
-initGame :: forall eff. Int -> Int -> Int -> Eff (random :: RANDOM | eff) Game
-initGame width height count = do
+initBoard :: forall eff. Dimensions -> Int -> Eff (random :: RANDOM | eff) Board
+initBoard dimensions count = do
   food <- nextFood dimensions snakes
   pure
     { snakes: snakes
     , food: food
     , dimensions: dimensions
-    , tick: 0
-    , startAfter: 10
-    , pause: Nothing
-    , end: false
     }
   where
-    dimensions = (Tuple width height)
     snakes = map (initSnake dimensions 3) $ take count heads
 
-moveSnakes :: forall eff. Game -> Eff (eff) Game
-moveSnakes game = pure game { snakes = snakes }
+moveSnakes :: forall eff. Game' -> Eff (eff) Game'
+moveSnakes (Playing tick board) = pure $ Playing tick board { snakes = snakes }
   where
-    snakes = map (moveSnake grow game.dimensions game.food) game.snakes
+    snakes = map (moveSnake grow board.dimensions board.food) board.snakes
+moveSnakes game = pure game
 
-checkHits :: forall eff. Game -> Eff (eff) Game
-checkHits game = pure game { snakes = snakes }
+checkHits :: forall eff. Game' -> Eff (eff) Game'
+checkHits (Playing tick board) = pure $ Playing tick board { snakes = snakes }
   where
-    snakes = map hit game.snakes
+    snakes = map hit board.snakes
     hit :: Snake -> Snake
     hit snake = snake { live = not dead }
       where
         head' = head snake.body
-        dead = not snake.live || any hit' game.snakes
+        dead = not snake.live || any hit' board.snakes
         hit' :: Snake -> Boolean
         hit' { body } = member head' $ fromFoldable $ map point body'
           where
@@ -176,49 +177,59 @@ checkHits game = pure game { snakes = snakes }
               if snake.body == body
               then tail body
               else body
+checkHits game = pure game
 
-addFood :: forall eff. Game -> Eff (random :: RANDOM | eff) Game
-addFood game =
-  if ate && (length $ concatSnakes game.snakes) < dimensions
+addFood :: forall eff. Game' -> Eff (random :: RANDOM | eff) Game'
+addFood (Playing tick board) =
+  if ate && (length $ concatSnakes board.snakes) < dimensions
   then
     do
-      food <- nextFood game.dimensions game.snakes
-      pure game { food = food }
-  else pure game
+      food <- nextFood board.dimensions board.snakes
+      pure $ Playing tick board { food = food }
+  else pure $ Playing tick board
   where
-    ate = any (\{ ate } -> ate) game.snakes
-    dimensions = (fst game.dimensions) * (snd game.dimensions)
+    ate = any (\{ ate } -> ate) board.snakes
+    dimensions = (fst board.dimensions) * (snd board.dimensions)
+addFood game = pure game
 
-checkEnd :: forall eff. Game -> Eff (eff) Game
-checkEnd game = pure game { end = full || allDead }
+checkEnd :: forall eff. Game' -> Eff (eff) Game'
+checkEnd (Playing tick board) =
+  if full || allDead
+  then pure $ Ended board
+  else pure $ Playing tick board
   where
-    dimensions = (fst game.dimensions) * (snd game.dimensions)
-    full = (length $ concatSnakes game.snakes) == dimensions
-    allDead = all (\{ live } -> not live) game.snakes
+    dimensions = (fst board.dimensions) * (snd board.dimensions)
+    full = (length $ concatSnakes board.snakes) == dimensions
+    allDead = all (\{ live } -> not live) board.snakes
+checkEnd game = pure game
 
-tick :: forall eff. Game -> Eff (random :: RANDOM | eff) Game
-tick game
-  | Nothing <- game.pause = do
-    pure game { tick = game.tick + 1 }
-     >>= moveSnakes
-     >>= checkHits
-     >>= addFood
-     >>= checkEnd
-  | otherwise = pure game
+tick :: forall eff. Game' -> Eff (random :: RANDOM | eff) Game'
+tick (Playing tick board) =
+  (pure $ (Playing (tick + 1) board))
+    >>= moveSnakes
+    >>= checkHits
+    >>= addFood
+    >>= checkEnd
+tick game = pure game
 
-pause :: String -> Int -> Game -> Game
-pause player tick game
-  | tick == game.tick = game { pause = Just player }
-  | otherwise = game
+initGame :: forall eff. Int -> Int -> Int -> Eff (random :: RANDOM | eff) Game'
+initGame width height count = do
+  board <- initBoard (Tuple width height) count
+  pure $ Started 10 board
 
-resume :: String -> Int -> Game -> Game
-resume player tick game = resume' game.pause
-  where
-    resume' :: Maybe String -> Game
-    resume' (Just player')
-      | tick == game.tick && player == player' = game { pause = Nothing }
-      | otherwise = game
-    resume' Nothing = game
+pause :: String -> Int -> Game' -> Game'
+pause player tick (Playing tick' board) =
+  if tick == tick'
+  then Paused tick' board player
+  else Playing tick' board
+pause _ _ game = game
+
+resume :: String -> Int -> Game' -> Game'
+resume player tick (Paused tick' board player') =
+  if tick == tick' && player == player'
+  then Playing tick' board
+  else Paused tick' board player'
+resume _ _ game = game
 
 codeToDirection :: Int -> Direction
 codeToDirection 0 = Left
@@ -230,14 +241,15 @@ directionToCode :: Direction -> Int
 directionToCode Left  = 0
 directionToCode Right = 1
 directionToCode Up    = 2
-directionToCode _     = 3
+directionToCode Down  = 3
 
-updateDirection :: Direction -> Int -> Int -> Game -> Game
-updateDirection direction i tick game
-  | tick == game.tick = game { snakes = fromMaybe [] snakes' }
+updateDirection :: Direction -> Int -> Int -> Game'  -> Game'
+updateDirection direction index tick (Playing tick' board)
+  | tick == tick' = Playing tick' board { snakes = fromMaybe [] snakes' }
     where
-      snakes' = alterAt i (\snake -> Just snake { direction = direction }) game.snakes
-  | otherwise = game
+      snakes' = alterAt index (\snake -> Just snake { direction = direction }) board.snakes
+  | otherwise = Playing tick' board
+updateDirection _ _ _ game = game
 
 encodeSnake :: Tuple Int Snake -> Array (Array Int)
 encodeSnake (Tuple index { body, live }) = concat [header, body', [tail']]
@@ -253,18 +265,24 @@ encodeSnake (Tuple index { body, live }) = concat [header, body', [tail']]
     f (NonEmpty h t) = [directionToCode h, length t + 1]
     tail' = unsafePartial Partial.head $ reverse body'
 
-encode :: Game -> { header :: Array Int, snakes :: Array (Array (Array Int)) }
-encode game =
-  { header: header
-  , snakes: snakes
+encode' :: Int -> Int -> Board ->
+  { header :: Array Int
+  , snakes :: Array (Array (Array Int))
   }
-  where
-    header =
-      [ if game.end then 1 else 0
-      , game.tick
-      , fst game.dimensions
-      , snd game.dimensions
-      , fst game.food
-      , snd game.food
-      ]
-    snakes = map encodeSnake $ mapWithIndex (\i s -> Tuple i s) $ game.snakes
+encode' state tick { snakes, dimensions: (Tuple width height), food: (Tuple x y) } =
+  { header:
+     [ state
+     , tick
+     , width
+     , height
+     , x
+     , y
+     ]
+  , snakes: map encodeSnake $ mapWithIndex (\i s -> Tuple i s) $ snakes
+  }
+
+encode :: Game' -> { header :: Array Int, snakes :: Array (Array (Array Int)) }
+encode (Started tick board)  = encode' 0 tick board
+encode (Playing tick board)  = encode' 1 tick board
+encode (Paused tick board _) = encode' 2 tick board
+encode (Ended board)         = encode' 3 0    board
