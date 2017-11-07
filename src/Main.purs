@@ -249,7 +249,7 @@ directionToCode Down  = 3
 
 updateDirection :: Direction -> Int -> Int -> Game'  -> Game'
 updateDirection direction index tick (Playing tick' board)
-  | tick == tick' = Playing tick' board { snakes = fromMaybe [] snakes' }
+  | true = Playing tick' board { snakes = fromMaybe [] snakes' }
     where
       snakes' = alterAt index (\snake -> Just snake { direction = beNice snake.direction direction }) board.snakes
       beNice :: Direction -> Direction -> Direction
