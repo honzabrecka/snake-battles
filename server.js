@@ -59,7 +59,7 @@ function createGame(playerId) {
       ...waitingPlayers.slice(0, minWaitingPlayers).map(({ id }) => id)
     ]
 
-    const game = snake.initGame(10)(10)(2)()
+    const game = snake.initGame(50)(50)(2)()
 
     games[gameId] = {
       gameId,
