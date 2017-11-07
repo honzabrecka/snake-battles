@@ -28,6 +28,8 @@ const canvas = document.getElementById('canvas')
 const context = canvas.getContext('2d')
 
 const s = 10
+const w = 50
+const h = 50
 
 const add = ([x, y], [a, b]) => [x + a, y + b]
 
@@ -39,10 +41,10 @@ const directionToP = (d) => {
 }
 
 const inRange = ([x, y]) => {
-  if (x < 0)   return [9, y]
-  if (x == 10) return [0, y]
-  if (y < 0)   return [x, 9]
-  if (y == 10) return [x, 0]
+  if (x < 0)   return [w - 1, y]
+  if (x == w) return [0, y]
+  if (y < 0)   return [x, h - 1]
+  if (y == h) return [x, 0]
   return [x, y]
 }
 
