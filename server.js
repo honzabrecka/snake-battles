@@ -185,5 +185,5 @@ server.listen(process.env.PORT || 8080, () => {
       games[gameId] = { ...games[gameId], game: updatedGame }
       sendGame(playerIds, updatedGame)
     })
-  }, 100)
+  }, 200)
 })
