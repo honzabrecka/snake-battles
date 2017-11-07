@@ -21,23 +21,17 @@ connection.onerror = (error) => {
 }
 
 connection.onmessage = (message) => {
-  console.log('message', message)
-
-
-  var fr = new FileReader();
-  fr.onload = function (e) {
-    const decoded = decode(new Uint16Array(e.target.result))
-    console.log(decoded)
-    state = decoded
+  const loader = new FileReader();
+  loader.onload = function (e) {
+    state = decode(new Uint16Array(e.target.result))
     draw(state)
   };
-  fr.readAsArrayBuffer(message.data)
+  loader.readAsArrayBuffer(message.data)
 }
 
 window.onkeydown = (e) => {
-  const c = {37: 0, 39: 1, 38: 2, 40: 3}[e.keyCode]
-
-  if (c !== undefined) connection.send(JSON.stringify([state.tick, c]))
+  const code = {37: 0, 39: 1, 38: 2, 40: 3, 32: 4}[e.keyCode]
+  if (code !== undefined) connection.send(JSON.stringify([state.tick, code]))
 }
 
 window['ws'] = connection
@@ -89,7 +83,6 @@ function drawFood(context, [x, y]) {
 
 function draw({ snakes, food }) {
   context.clearRect(0, 0, context.canvas.width, context.canvas.height)
-  console.log(food)
   drawFood(context, food)
   snakes.forEach(((snake) => {
     let p
@@ -111,8 +104,6 @@ function decode(bytes) {
   const [state, tick, width, height, foodX, foodY, ...snakes] = bytes
   const decoded = []
 
-  console.log(snakes)
-
   for (let i = 0, j = 0, s = [], prev = ''; i < snakes.length; i++) {
     if (j === 0) {
       const live = snakes[i] >> 15
@@ -120,15 +111,12 @@ function decode(bytes) {
       s.push([live, index])
       j++
     } else if (j === 1 || j === 2) {
-      console.log(snakes[i])
       s.push(snakes[i])
       j++
     } else if (j > 2) {
       const direction = snakes[i] >> 14
       const length = snakes[i] ^ (direction << 14)
       const hash = direction + '' + length
-console.log('>>', direction, length)
-console.log('--', hash, prev)
       if (hash === prev) {
         decoded.push(s)
         s = []

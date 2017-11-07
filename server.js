@@ -59,18 +59,20 @@ function createGame(playerId) {
       ...waitingPlayers.slice(0, minWaitingPlayers).map(({ id }) => id)
     ]
 
+    const game = snake.initGame(10)(10)(2)()
+
     games[gameId] = {
       gameId,
       playerIds,
-      game: snake.initGame(10)(10)(2)()
+      game
     }
 
     playerIds.forEach((id) => {
       players[id] = { ...players[id], gameId }
-      players[id].ws.send(STATE.CONNECTED_PREPARE)
     })
+    sendGame(playerIds, game)
   } else {
-    players[playerId].ws.send(STATE.WAITING)
+    // waiting
   }
 }
 
@@ -87,47 +89,49 @@ function destroyGame(gameId) {
   })
 }
 
+function decodeMessage(data) {
+  const json = JSON.parse(data)
+
+  if (!json
+    || !Array.isArray(json)
+    || json.length < 2
+    || typeof json[0] !== 'number'
+    || typeof json[1] !== 'number')
+    throw new Error('Invalid message')
+
+  return json
+}
+
 wss.on('connection', (ws) => {
   const id = addPlayer(ws)
   createGame(id)
   console.log('connect :: ', Object.keys(players).length)
 
   ws.on('message', (data) => {
-    const d = JSON.parse(data)
-    console.log('message :: ', d)
+    try {
+      const [tick, code] = decodeMessage(data)
+      const { gameId } = players[id]
 
-    //
+      if (!games[gameId]) return
 
-    const { gameId } = players[id]
-
-    if (gameId) {
-      const { playerIds, game } = games[gameId]
-      const index = playerIds.findIndex(($id) => $id === id)
-
-      const key = d[1]
-      const tick = d[0] + 1
-
-      //console.log(snake.updateDirection(snake.codeToDirection(key))(index)(tick)(game))
-
-      games[gameId] = {
-        ...games[gameId],
-        game: snake.updateDirection(snake.codeToDirection(key))(index)(tick)(game)
+      if (new Set([0, 1, 2, 3]).has(code)) {
+        games[gameId] = {
+          ...games[gameId],
+          game: snake.updateDirection
+            (snake.codeToDirection(code))
+            (games[gameId].playerIds.findIndex(($id) => $id === id))
+            (tick)
+            (games[gameId].game)
+        }
       }
 
-      console.log(game.tick, tick, games[gameId].game.snakes[0])
-    }
-
-    // action (key)
-    // pause
-    // resume
-    // restart
-    // (close)
-
-    // wss.clients.forEach((client) => {
-    //   if (client !== ws && client.readyState === WebSocket.OPEN) {
-    //     client.send(data)
-    //   }
-    // })
+      if (code === 4) {
+        games[gameId] = {
+          ...games[gameId],
+          game: snake.switchPause(id)(tick)(games[gameId].game)
+        }
+      }
+    } catch (_) {}
   })
 
   ws.on('close', () => {
@@ -165,16 +169,21 @@ function encode(header, snakes) {
   return encoded
 }
 
+function sendGame(playerIds, game) {
+  const { header, snakes } = snake.encode(game)
+  playerIds.forEach((id) => {
+    players[id].ws.send(encode(header, snakes).buffer, { binary: true })
+  })
+}
+
 server.listen(8080, () => {
   console.log('Listening on %d', server.address().port);
 
   setInterval(() => {
     Object.values(games).forEach(({ gameId, game, playerIds }) => {
-      const { header, snakes } = snake.encode(game)
-      playerIds.forEach((id) => {
-        players[id].ws.send(encode(header, snakes).buffer, { binary: true, mask: false })
-      })
-      games[gameId] = { ...games[gameId], game: snake.tick(game)() }
+      const updatedGame = snake.tick(game)()
+      games[gameId] = { ...games[gameId], game: updatedGame }
+      sendGame(playerIds, updatedGame)
     })
-  }, 1000)
+  }, 100)
 })
