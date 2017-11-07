@@ -176,7 +176,7 @@ function sendGame(playerIds, game) {
   })
 }
 
-server.listen(8080, () => {
+server.listen(process.env.PORT || 8080, () => {
   console.log('Listening on %d', server.address().port);
 
   setInterval(() => {
