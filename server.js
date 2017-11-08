@@ -7,7 +7,7 @@ const snake = require('./output/Main')
 
 const app = express()
 
-const minPlayers = 2
+const minPlayers = 4
 
 // { id :: UUID, ws :: WebSocketClient, gameId :: Maybe UUID }
 const players = {}
@@ -45,7 +45,7 @@ function removePlayer(id) {
   return gameId
 }
 
-const newGame = snake.initGame(50)(50)(2)()
+const newGame = snake.initGame(50)(50)(4)()
 
 // UUID -> Eff (eff) Unit
 function createGame(playerId) {
