@@ -121,7 +121,7 @@ wss.on('connection', (ws) => {
     if (code === 4) {
       games[gameId] = {
         ...games[gameId],
-        game: snake.switchPause(id)(tick)(games[gameId].game)
+        game: snake.switchPause(id)(games[gameId].game)
       }
     }
 

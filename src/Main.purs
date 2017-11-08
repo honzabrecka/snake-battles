@@ -216,24 +216,21 @@ initGame width height count = do
   board <- initBoard (Tuple width height) count
   pure $ Started 5 board
 
-pause :: String -> Int -> Game' -> Game'
-pause player tick (Playing tick' board) =
-  if tick == tick'
-  then Paused tick' board player
-  else Playing tick' board
-pause _ _ game = game
+pause :: String -> Game' -> Game'
+pause player (Playing tick' board) = Paused tick' board player
+pause _ game = game
 
-resume :: String -> Int -> Game' -> Game'
-resume player tick (Paused tick' board player') =
-  if tick == tick' && player == player'
+resume :: String -> Game' -> Game'
+resume player (Paused tick' board player') =
+  if player == player'
   then Playing tick' board
   else Paused tick' board player'
-resume _ _ game = game
+resume _ game = game
 
-switchPause :: String -> Int -> Game' -> Game'
-switchPause player tick (Playing tick' board) = pause player tick (Playing tick' board)
-switchPause player tick (Paused tick' board player') = resume player tick (Paused tick' board player')
-switchPause _ _ game = game
+switchPause :: String -> Game' -> Game'
+switchPause player (Playing tick' board) = pause player (Playing tick' board)
+switchPause player (Paused tick' board player') = resume player (Paused tick' board player')
+switchPause _ game = game
 
 codeToDirection :: Int -> Direction
 codeToDirection 0 = Left
