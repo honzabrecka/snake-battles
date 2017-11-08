@@ -14,6 +14,12 @@ const players = {}
 // { gameId :: UUID, playerIds :: Array UUID, game :: GAME }
 const games = {}
 
+const INFO = {
+  CREATED: 0,
+  DESTROYED: 9,
+  GAME: 3
+}
+
 app.use(express.static('public'))
 
 app.use(function (req, res) {
@@ -22,14 +28,6 @@ app.use(function (req, res) {
 
 const server = http.createServer(app)
 const wss = new WebSocket.Server({ server })
-
-const STATE = {
-  WAITING: 0,
-  CONNECTED_PREPARE: 1,
-  CONNECTED_PLAYING: 2,
-  CONNECTED_END: 3,
-  DESTROYED: 8
-}
 
 // WebSocketClient -> Eff (eff) UUID
 function addPlayer(ws) {
@@ -72,7 +70,12 @@ function createGame(playerId) {
     playerIds.forEach((id) => {
       players[id] = { ...players[id], gameId }
     })
+
     sendGame(playerIds, game)
+
+    playerIds.forEach((id, i) => {
+      sendInfo(players[id].ws, INFO.CREATED, [i])
+    })
   } else {
     // waiting
   }
@@ -87,7 +90,7 @@ function destroyGame(gameId) {
     if (!players[id]) return
 
     players[id] = { ...players[id], gameId: null }
-    players[id].ws.send(STATE.DESTROYED)
+    sendInfo(players[id].ws, INFO.DESTROYED, [])
   })
 }
 
@@ -141,10 +144,12 @@ wss.on('connection', (ws) => {
 })
 
 function encode(header, snakes) {
-  const encoded = new Uint16Array(header.length + snakes.reduce((r, s) => r + s.length + 1, 0))
+  const encoded = new Uint16Array(1 + header.length + snakes.reduce((r, s) => r + s.length + 1, 0))
+
+  encoded[0] = INFO.GAME
 
   let i
-  let x = 0
+  let x = 1
 
   for (i = 0; i < header.length; i++)
     encoded[x++] = header[i]
@@ -170,6 +175,15 @@ function sendGame(playerIds, game) {
   playerIds.forEach((id) => {
     players[id].ws.send(encode(header, snakes).buffer, { binary: true })
   })
+}
+
+function sendInfo(ws, state, message) {
+  const bytes = new Uint16Array(1 + message.length)
+  bytes[0] = state
+  message.forEach((v, i) => {
+    bytes[i + 1] = v
+  })
+  ws.send(bytes.buffer, { binary: true })
 }
 
 server.listen(process.env.PORT || 8080, () => {

@@ -1,5 +1,18 @@
 let state = {}
 
+const INFO = {
+  CREATED: 0,
+  DESTROYED: 9,
+  GAME: 3
+}
+
+const colors = [
+  '#0033cc',
+  '#339966',
+  '#800000',
+  '#ff9900'
+]
+
 const connection = new WebSocket(window['__WS_URL__'])
 
 connection.onopen = () => {
@@ -13,8 +26,16 @@ connection.onerror = (error) => {
 connection.onmessage = (message) => {
   const loader = new FileReader();
   loader.onload = function (e) {
-    state = decode(new Uint16Array(e.target.result))
-    draw(state)
+    const bytes = new Uint16Array(e.target.result)
+
+    if (bytes[0] === INFO.GAME) {
+      state = { ...state, ...decode(bytes) }
+      draw(state)
+    } else if (bytes[0] === INFO.CREATED) {
+      console.log('>>', bytes[1])
+      state.playerIndex = bytes[1]
+      document.getElementById('color').style.backgroundColor = colors[state.playerIndex]
+    }
   };
   loader.readAsArrayBuffer(message.data)
 }
@@ -54,13 +75,6 @@ const inRange = ([x, y]) => {
 }
 
 function drawPoint(context, live, color, [x, y]) {
-  const colors = [
-    '#0033cc',
-    '#339966',
-    '#800000',
-    '#ff9900'
-  ]
-
   context.beginPath()
   context.globalAlpha = live ? 1 : 0.2
   context.rect(x * s, y * s, s, s)
@@ -96,7 +110,7 @@ function draw({ snakes, food }) {
 }
 
 function decode(bytes) {
-  const [state, tick, width, height, foodX, foodY, ...snakes] = bytes
+  const [_, state, tick, width, height, foodX, foodY, ...snakes] = bytes
   const decoded = []
 
   for (let i = 0, j = 0, s = [], prev = ''; i < snakes.length; i++) {
