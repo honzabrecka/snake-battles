@@ -221,10 +221,9 @@ pause player (Playing tick' board) = Paused tick' board player
 pause _ game = game
 
 resume :: String -> Game' -> Game'
-resume player (Paused tick' board player') =
-  if player == player'
-  then Playing tick' board
-  else Paused tick' board player'
+resume player (Paused tick' board player')
+  | player == player' = Playing tick' board
+  | otherwise = Paused tick' board player'
 resume _ game = game
 
 switchPause :: String -> Game' -> Game'
@@ -245,8 +244,8 @@ directionToCode Up    = 2
 directionToCode Down  = 3
 
 updateDirection :: Direction -> Int -> Int -> Game'  -> Game'
-updateDirection direction index tick (Playing tick' board)
-  | true = Playing tick' board { snakes = fromMaybe [] snakes' }
+updateDirection direction index tick (Playing tick' board) =
+  Playing tick' board { snakes = fromMaybe [] snakes' }
     where
       snakes' = alterAt index (\snake -> Just snake { direction = beNice (headDirection snake) direction }) board.snakes
       headDirection :: Snake -> Direction
@@ -257,7 +256,6 @@ updateDirection direction index tick (Playing tick' board)
       beNice Up Down = Up
       beNice Down Up = Down
       beNice _ direction = direction
-  | otherwise = Playing tick' board
 updateDirection _ _ _ game = game
 
 encodeSnake :: Tuple Int Snake -> Array (Array Int)
