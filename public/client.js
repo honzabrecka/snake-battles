@@ -24,7 +24,7 @@ window.onkeydown = (e) => {
   if (code !== undefined) {
     const bytes = new Uint16Array(2)
     bytes[0] = state.tick
-    bytes[1] = code
+    bytes[1] = state.state === 3 ? code + 1 : code
     connection.send(bytes)
   }
 }

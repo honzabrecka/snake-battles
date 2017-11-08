@@ -47,6 +47,8 @@ function removePlayer(id) {
   return gameId
 }
 
+const newGame = snake.initGame(50)(50)(2)()
+
 // UUID -> Eff (eff) Unit
 function createGame(playerId) {
   const minWaitingPlayers = minPlayers - 1
@@ -59,7 +61,7 @@ function createGame(playerId) {
       ...waitingPlayers.slice(0, minWaitingPlayers).map(({ id }) => id)
     ]
 
-    const game = snake.initGame(50)(50)(2)()
+    const game = newGame
 
     games[gameId] = {
       gameId,
@@ -117,6 +119,13 @@ wss.on('connection', (ws) => {
       games[gameId] = {
         ...games[gameId],
         game: snake.switchPause(id)(tick)(games[gameId].game)
+      }
+    }
+
+    if (code === 5) {
+      games[gameId] = {
+        ...games[gameId],
+        game: newGame
       }
     }
   })
