@@ -172,8 +172,9 @@ function encode(header, snakes) {
 
 function sendGame(playerIds, game) {
   const { header, snakes } = snake.encode(game)
+  const encoded = encode(header, snakes).buffer
   playerIds.forEach((id) => {
-    players[id].ws.send(encode(header, snakes).buffer, { binary: true })
+    players[id].ws.send(encoded, { binary: true })
   })
 }
 
