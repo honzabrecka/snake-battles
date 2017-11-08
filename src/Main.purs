@@ -18,7 +18,7 @@ import Control.Monad.Eff.Random (RANDOM, randomInt)
 import Data.Array (all, alterAt, any, concat, concatMap, cons, filter, foldl, group, length, mapWithIndex, range, replicate, reverse, take, unsafeIndex)
 import Data.Array.Partial as Partial
 import Data.Maybe (Maybe(..), fromMaybe)
-import Data.NonEmpty (NonEmpty(..))
+import Data.NonEmpty as NE
 import Data.Set (fromFoldable, member)
 import Data.Tuple (Tuple(..), fst, snd)
 import Partial.Unsafe (unsafePartial)
@@ -36,7 +36,7 @@ type Point = Tuple Int Int
 
 type OrientedPoint = Tuple Point Direction
 
-type Body = Array OrientedPoint
+type Body = NE.NonEmpty Array OrientedPoint
 
 type Snake =
   { body :: Body
@@ -86,16 +86,16 @@ grid (Tuple width height) = map (\x -> map (\y -> Tuple x y) h) w
 point :: OrientedPoint -> Point
 point = fst
 
+direction :: OrientedPoint -> Direction
+direction = snd
+
+bodyA :: Body -> Array OrientedPoint
+bodyA (NE.NonEmpty head body) = cons head body
+
 concatSnakes :: Array Snake -> Array Point
-concatSnakes = concatMap (map point <<< body)
+concatSnakes = concatMap (map point <<< bodyA <<< body)
   where
     body = \{ body } -> body
-
-head :: Body -> Point
-head = point <<< unsafePartial Partial.head
-
-tail :: Body -> Body
-tail = unsafePartial Partial.tail
 
 inDimensions :: Dimensions -> Point -> Point
 inDimensions (Tuple w h) (Tuple x y)
@@ -106,13 +106,13 @@ inDimensions (Tuple w h) (Tuple x y)
   | otherwise = (Tuple x y)
 
 nextHead :: Dimensions -> Snake -> OrientedPoint
-nextHead dimensions { body, direction } = Tuple head' direction
+nextHead dimensions { body: (NE.NonEmpty head _), direction } = Tuple head' direction
   where
-    head' = inDimensions dimensions $ (head body) + (directionToPoint direction)
+    head' = inDimensions dimensions $ (point head) + (directionToPoint direction)
 
 grow :: Boolean -> Body -> Body
-grow true  = id
-grow false = unsafePartial Partial.init
+grow true  body = body
+grow false (NE.NonEmpty head body) = NE.NonEmpty head $ unsafePartial Partial.init body
 
 moveSnake :: (Boolean -> Body -> Body) -> Dimensions -> Point -> Snake -> Snake
 moveSnake grow dimensions food snake =
@@ -122,7 +122,9 @@ moveSnake grow dimensions food snake =
   where
     head' = nextHead dimensions snake
     ate = food == point head'
-    body' = grow ate $ cons head' snake.body
+    body' = grow ate $ f head' snake.body -- cons head' snake.body
+    f :: OrientedPoint -> Body -> Body
+    f head' (NE.NonEmpty head body) = NE.NonEmpty head' $ cons head body
 
 initSnake :: Dimensions -> Int -> OrientedPoint -> Snake
 initSnake dimensions length (Tuple head direction) =
@@ -131,7 +133,7 @@ initSnake dimensions length (Tuple head direction) =
     fakeGrow = \_ -> id
     fakeFood = Tuple (-5) (-5)
     snake =
-      { body: [Tuple head direction]
+      { body: NE.NonEmpty (Tuple head direction) []
       , direction: direction
       , ate: false
       , live: true
@@ -168,15 +170,15 @@ checkHits board = pure $ board { snakes = snakes }
     hit :: Snake -> Snake
     hit snake = snake { live = not dead }
       where
-        head' = head snake.body
+        head' = point $ NE.head snake.body
         dead = not snake.live || any hit' board.snakes
         hit' :: Snake -> Boolean
         hit' { body, live } = live && (member head' $ fromFoldable $ map point body')
           where
             body' =
               if snake.body == body
-              then tail body
-              else body
+              then NE.tail $ body
+              else bodyA body
 
 addFood :: forall eff. Board -> Eff (random :: RANDOM | eff) Board
 addFood board =
@@ -244,12 +246,12 @@ directionToCode Up    = 2
 directionToCode Down  = 3
 
 updateDirection :: Direction -> Int -> Int -> Game'  -> Game'
-updateDirection direction index tick (Playing tick' board) =
+updateDirection direction' index tick (Playing tick' board) =
   Playing tick' board { snakes = fromMaybe [] snakes' }
     where
-      snakes' = alterAt index (\snake -> Just snake { direction = beNice (headDirection snake) direction }) board.snakes
+      snakes' = alterAt index (\snake -> Just snake { direction = beNice (headDirection snake) direction' }) board.snakes
       headDirection :: Snake -> Direction
-      headDirection { body } = snd $ unsafePartial Partial.head body
+      headDirection snake = direction $ NE.head snake.body
       beNice :: Direction -> Direction -> Direction
       beNice Left Right = Left
       beNice Right Left = Right
@@ -261,15 +263,15 @@ updateDirection _ _ _ game = game
 encodeSnake :: Tuple Int Snake -> Array (Array Int)
 encodeSnake (Tuple index { body, live }) = concat [header, body', [tail']]
   where
-    head' = head body
-    directions = group $ map snd body
+    head' = point $ NE.head body
+    directions = group $ map snd $ bodyA body
     header =
       [ [if live then 1 else 0, index]
       , [(fst head'), (snd head')]
       ]
     body' = map f directions
-    f :: NonEmpty Array Direction -> Array Int
-    f (NonEmpty h t) = [directionToCode h, length t + 1]
+    f :: NE.NonEmpty Array Direction -> Array Int
+    f (NE.NonEmpty h t) = [directionToCode h, length t + 1]
     tail' = unsafePartial Partial.head $ reverse body'
 
 encode' :: Int -> Int -> Board ->
