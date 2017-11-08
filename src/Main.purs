@@ -248,7 +248,9 @@ updateDirection :: Direction -> Int -> Int -> Game'  -> Game'
 updateDirection direction index tick (Playing tick' board)
   | true = Playing tick' board { snakes = fromMaybe [] snakes' }
     where
-      snakes' = alterAt index (\snake -> Just snake { direction = beNice snake.direction direction }) board.snakes
+      snakes' = alterAt index (\snake -> Just snake { direction = beNice (headDirection snake) direction }) board.snakes
+      headDirection :: Snake -> Direction
+      headDirection { body } = snd $ unsafePartial Partial.head body
       beNice :: Direction -> Direction -> Direction
       beNice Left Right = Left
       beNice Right Left = Right
