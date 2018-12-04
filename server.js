@@ -7,7 +7,7 @@ const snake = require('./output/Main')
 
 const app = express()
 
-const minPlayers = 4
+const minPlayers = parseInt(process.env.MIN_PLAYERS, 10) || 4
 
 // { id :: UUID, ws :: WebSocketClient, gameId :: Maybe UUID }
 const players = {}
