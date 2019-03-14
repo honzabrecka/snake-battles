@@ -12,6 +12,12 @@ const colors = [
   '#800000',
   '#ff9900'
 ]
+const bgColors = [
+  '#A6E5FF',
+  '#A0E89C',
+  '#E89D9A',
+  '#FFD9BB'
+]
 
 const connection = new WebSocket(window['__WS_URL__'])
 
@@ -34,7 +40,7 @@ connection.onmessage = (message) => {
     } else if (bytes[0] === INFO.CREATED) {
       console.log('>>', bytes[1])
       state.playerIndex = bytes[1]
-      document.getElementById('color').style.backgroundColor = colors[state.playerIndex]
+      canvas.style.backgroundColor = bgColors[state.playerIndex]
     }
   };
   loader.readAsArrayBuffer(message.data)
@@ -53,7 +59,7 @@ window.onkeydown = (e) => {
 const canvas = document.getElementById('canvas')
 const context = canvas.getContext('2d')
 
-const s = 10
+let s = 10
 const w = 50
 const h = 50
 
@@ -148,3 +154,17 @@ function decode(bytes) {
     snakes: decoded
   }
 }
+
+function resize() {
+  const bw = window.innerWidth
+  const bh = window.innerHeight
+  const d = bw > bh ? bh : bw
+  const rd = d - (d % 10)
+  s = Math.floor((rd / 500) * 10)
+  canvas.width = s * 50
+  canvas.height = s * 50
+  draw(state)
+}
+
+window.addEventListener('resize', resize, false)
+resize()
