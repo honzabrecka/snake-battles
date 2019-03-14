@@ -168,3 +168,57 @@ function resize() {
 
 window.addEventListener('resize', resize, false)
 resize()
+
+document.addEventListener('touchstart', handleTouchStart, false);
+document.addEventListener('touchmove', handleTouchMove, false);
+
+let xDown = null
+let yDown = null
+
+function getTouches(evt) {
+  return evt.touches
+}
+
+function handleTouchStart(evt) {
+  evt.preventDefault()
+  const firstTouch = getTouches(evt)[0]
+  xDown = firstTouch.clientX
+  yDown = firstTouch.clientY
+}
+
+function handleTouchMove(evt) {
+  evt.preventDefault()
+  if (!xDown || !yDown) return
+
+  const xUp = evt.touches[0].clientX
+  const yUp = evt.touches[0].clientY
+  const xDiff = xDown - xUp
+  const yDiff = yDown - yUp
+  let code = null
+
+  if (Math.abs(xDiff) > Math.abs(yDiff)) {
+    if (xDiff > 0) {
+      // left
+      code = 0
+    } else {
+      // right
+      code = 1
+    }
+  } else {
+    if (yDiff > 0) {
+      // up
+      code = 2
+    } else {
+      // dow
+      code = 3
+    }
+  }
+
+  const bytes = new Uint16Array(2)
+  bytes[0] = state.tick
+  bytes[1] = state.state === 3 ? code + 1 : code
+  connection.send(bytes)
+
+  xDown = null
+  yDown = null
+}
