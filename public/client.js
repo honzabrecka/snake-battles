@@ -163,14 +163,14 @@ function resize() {
   s = Math.floor((rd / 500) * 10)
   canvas.width = s * 50
   canvas.height = s * 50
-  draw(state)
+  if (state.food && state.snakes) draw(state)
 }
 
 window.addEventListener('resize', resize, false)
 resize()
 
-document.addEventListener('touchstart', handleTouchStart, false);
-document.addEventListener('touchmove', handleTouchMove, false);
+document.addEventListener('touchstart', handleTouchStart);
+document.addEventListener('touchmove', handleTouchMove);
 
 let xDown = null
 let yDown = null
@@ -180,14 +180,15 @@ function getTouches(evt) {
 }
 
 function handleTouchStart(evt) {
-  evt.preventDefault()
   const firstTouch = getTouches(evt)[0]
   xDown = firstTouch.clientX
   yDown = firstTouch.clientY
+  // evt.preventDefault()
 }
 
 function handleTouchMove(evt) {
-  evt.preventDefault()
+  console.log('move')
+
   if (!xDown || !yDown) return
 
   const xUp = evt.touches[0].clientX
@@ -209,7 +210,7 @@ function handleTouchMove(evt) {
       // up
       code = 2
     } else {
-      // dow
+      // down
       code = 3
     }
   }
@@ -219,6 +220,8 @@ function handleTouchMove(evt) {
   bytes[1] = state.state === 3 ? code + 1 : code
   connection.send(bytes)
 
-  xDown = null
-  yDown = null
+  // xDown = null
+  // yDown = null
+
+  evt.preventDefault()
 }
