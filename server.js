@@ -187,7 +187,7 @@ function sendInfo(ws, state, message) {
   ws.send(bytes.buffer, { binary: true })
 }
 
-server.listen(process.env.PORT || 8080, () => {
+server.listen(process.env.PORT || 3000, () => {
   console.log('Listening on %d', server.address().port);
 
   setInterval(() => {
